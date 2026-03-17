@@ -1285,7 +1285,10 @@ function getCCFClass(ccf) {
 
 function findCCF(classId, dateISO, slotMin) {
   for (const [key, val] of Object.entries(ccfData)) {
-    if (val.classId === classId && val.date === dateISO && val.status !== 'refused') {
+    if (val.date === dateISO && val.status !== 'refused') {
+      // Verifier si cette classe est concernee (classId direct OU dans le tableau classes)
+      const classMatch = val.classId === classId || (val.classes && val.classes.includes(classId));
+      if (!classMatch) continue;
       // Support nouveau format (ccfStart/ccfEnd) et ancien (slotStart/slotEnd)
       const ccfStart = timeToMin(val.ccfStart || val.slotStart);
       const ccfEnd = timeToMin(val.ccfEnd || val.slotEnd);
@@ -1410,12 +1413,7 @@ function openSlot(classId, dateISO, start, end, dayIdx) {
       body += `<div class="info-row" style="margin-top:8px"><span class="label">Commentaire</span><span class="value">${ccfEntry.comment}</span></div>`;
     }
 
-    // Bouton supprimer
-    if (ccfEntry.status === 'own' || ccfEntry.status === 'accepted') {
-      body += `<div class="form-actions" style="margin-top:10px">
-        <button class="btn btn-outline" onclick="deleteCCF('${ccfEntry.key}')">Supprimer ce CCF</button>
-      </div>`;
-    }
+    // CCF non modifiable une fois pose
   } else {
     // Pas de CCF : proposer d'en poser un
     body += `<div class="form-actions" style="margin-top:16px">
@@ -1431,11 +1429,12 @@ function openSlot(classId, dateISO, start, end, dayIdx) {
 
 function findCCFForSlot(classId, dateISO, start, end) {
   for (const [key, val] of Object.entries(ccfData)) {
-    if (val.classId === classId && val.date === dateISO && val.status !== 'refused') {
+    if (val.date === dateISO && val.status !== 'refused') {
+      const classMatch = val.classId === classId || (val.classes && val.classes.includes(classId));
+      if (!classMatch) continue;
       const ccfStart = timeToMin(val.ccfStart || val.slotStart);
       const ccfEnd = timeToMin(val.ccfEnd || val.slotEnd);
       const sMin = timeToMin(start);
-      // Le cours est dans la plage du CCF
       if (sMin >= ccfStart && sMin < ccfEnd) {
         return { ...val, key };
       }
@@ -1614,15 +1613,6 @@ function respondSlot(key, slotIdx, approval) {
     const msg = approval === 'accepted' ? 'Creneau accepte !' : 'Creneau refuse.';
     showToast(msg + (globalStatus === 'accepted' ? ' CCF confirme !' : globalStatus === 'refused' ? ' CCF refuse.' : ''));
   });
-}
-
-function deleteCCF(key) {
-  if (confirm('Supprimer ce CCF ?')) {
-    ccfRef.child(key).remove().then(() => {
-      closeModal('modalSlot');
-      showToast('CCF supprime.');
-    });
-  }
 }
 
 // === DEMANDES EN ATTENTE ===
